@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校园时光轴 · AI 提取版</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1f2933; --sub:#6b7683;
+    --line:#e3e8ee; --brand:#2563eb; --brand-soft:#eff4ff;
+    --hi:#dc2626; --hi-soft:#fdecec; --mid:#d97706; --mid-soft:#fdf3e3;
+    --lo:#6b7280; --lo-soft:#eef1f4; --ok:#059669; --ok-soft:#e8f7f1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;padding:24px 16px 64px}
+  .wrap{max-width:880px;margin:0 auto}
+  header{text-align:center;margin-bottom:20px}
+  header h1{font-size:26px;letter-spacing:1px}
+  header p{color:var(--sub);font-size:13px;margin-top:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.04)}
+  .card h2{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card h2 .tag{font-size:11px;color:var(--brand);background:var(--brand-soft);padding:1px 8px;border-radius:99px;font-weight:normal}
+  .quick{display:flex;gap:8px}
+  .quick input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+  .quick input:focus{border-color:var(--brand)}
+  button{border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;background:var(--brand);color:#fff}
+  button:hover{opacity:.9}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  button.ghost{background:var(--lo-soft);color:var(--ink)}
+  button.danger{background:var(--hi-soft);color:var(--hi)}
+  button.sm{padding:6px 12px;font-size:13px}
+  .parsed{font-size:12px;color:var(--sub);margin-top:8px;min-height:1em}
+  .parsed b{color:var(--ink)}
+  form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  form .full{grid-column:1/-1}
+  form label{font-size:12px;color:var(--sub);display:block;margin-bottom:3px}
+  form input,form select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;outline:none;background:#fff}
+  form input:focus,form select:focus{border-color:var(--brand)}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:12px;color:var(--sub);font-weight:normal;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;white-space:nowrap}
+  .p-高{background:var(--hi-soft);color:var(--hi)}
+  .p-中{background:var(--mid-soft);color:var(--mid)}
+  .p-低{background:var(--lo-soft);color:var(--lo)}
+  .t-tag{font-size:11px;color:var(--sub)}
+  .conflict li{margin:8px 0;font-size:13px}
+  .conflict b{color:var(--ink)}
+  .reason{color:var(--sub);font-size:12px}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
+  .top-item{display:flex;gap:8px;font-size:14px;padding:6px 0}
+  .top-item .no{color:#fff;background:var(--brand);border-radius:50%;width:20px;height:20px;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+  .edit{color:var(--brand);cursor:pointer;font-size:12px;white-space:nowrap}
+  .del{color:var(--hi);cursor:pointer;font-size:12px;white-space:nowrap}
+  footer{color:var(--sub);font-size:12px;text-align:center;margin-top:8px;line-height:1.8}
+
+  /* ---------- AI 提取区新增样式 ---------- */
+  .ai-box textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.7;outline:none;background:#fff}
+  .ai-box textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .ai-bar{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .counter{font-size:12px;color:var(--sub);margin-left:auto;font-variant-numeric:tabular-nums}
+  .counter.over{color:var(--hi);font-weight:600}
+  .privacy{font-size:12px;color:var(--sub);background:var(--lo-soft);border-radius:8px;padding:7px 10px;margin-top:10px}
+  .privacy b{color:var(--ink);font-weight:600}
+  .pii-warn{display:none;font-size:12px;color:var(--mid);background:var(--mid-soft);border-radius:8px;padding:7px 10px;margin-top:6px}
+  .pii-warn.show{display:block}
+  .status{display:none;font-size:13px;padding:8px 11px;border-radius:8px;margin-top:10px}
+  .status.show{display:block}
+  .status.info{background:var(--brand-soft);color:var(--brand)}
+  .status.ok{background:var(--ok-soft);color:var(--ok)}
+  .status.err{background:var(--mid-soft);color:var(--mid)}
+  .preview{display:none;margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fbfdff;padding:12px}
+  .preview.show{display:block}
+  .preview-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;flex-wrap:wrap}
+  .preview-head .src{font-size:11px;font-weight:normal;color:var(--brand);background:var(--brand-soft);padding:1px 8px;border-radius:99px}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.mini{font-size:13px;min-width:600px}
+  table.mini th{padding:4px 6px;font-size:11px;white-space:nowrap}
+  table.mini td{padding:6px;vertical-align:middle}
+  table.mini input[type=text],table.mini input[type=date],table.mini input[type=time],table.mini select{
+    width:100%;border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;
+    outline:none;background:#fff;color:var(--ink)}
+  table.mini input:focus,table.mini select:focus{border-color:var(--brand)}
+  table.mini tr.needcheck td{background:#fffcf5}
+  table.mini tr.needcheck td:first-child{box-shadow:inset 3px 0 0 var(--mid)}
+  .chk-txt{font-size:11px;color:var(--mid);margin-top:2px}
+  .preview-foot{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;
+    border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px;margin-right:5px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (max-width:640px){form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🕐 校园时光轴</h1>
+    <p>大连理工大学新生版 · 粘贴一段通知，交给 AI 拆成多条事项</p>
+  </header>
+
+  <!-- ========== AI 一句话 / 一段通知 添加 ========== -->
+  <div class="card ai-box">
+    <h2>智能添加 <span class="tag">可粘贴整段通知，自动拆成多条</span></h2>
+    <textarea id="aiInput" maxlength="500" placeholder="例：&#10;1. 12月19日前交大学物理实验报告&#10;2. 下周三下午2点在综一报告厅开新生班会&#10;3. 周五17:00前到菜鸟驿站取快递，逾期退回&#10;也可以直接粘贴辅导员发的通知原文。"></textarea>
+    <div class="ai-bar">
+      <button id="aiBtn" onclick="aiAdd()">✨ AI 识别</button>
+      <button class="ghost" onclick="ruleAdd()">基础识别</button>
+      <span class="counter" id="charCount">0 / 500</span>
+    </div>
+    <div class="privacy">🔒 识别时文字会发送给大模型，请勿输入<b>姓名、学号</b>等个人信息。</div>
+    <div class="pii-warn" id="piiWarn">⚠️ 文字里似乎含有学号、手机号等个人信息，建议删掉后再识别。</div>
+    <div class="status" id="aiStatus"></div>
+
+    <div class="preview" id="aiPreview">
+      <div class="preview-head">
+        <span>以下是我从文字识别的结果，请核对</span>
+        <span class="src" id="aiPreviewSrc">AI 识别</span>
+      </div>
+      <div class="scroll">
+        <table class="mini">
+          <thead><tr>
+            <th style="width:28px"></th><th style="min-width:150px">事项</th><th style="width:76px">类型</th>
+            <th style="width:132px">日期</th><th style="width:96px">时间</th><th style="width:56px">置信</th><th style="width:42px"></th>
+          </tr></thead>
+          <tbody id="aiPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="hint">带「(待核对)」的行表示日期或时间来自推测，建议逐条确认后再加入。可直接在上方修改，取消勾选则不加入。</div>
+      <div class="preview-foot">
+        <button onclick="confirmPreview()">确认加入时间轴</button>
+        <button class="ghost" onclick="cancelPreview()">全部取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">详细添加 / 编辑</h2>
+    <form onsubmit="return submitForm(event)">
+      <div class="full"><label>事项名称 *</label><input id="fName" required placeholder="如：大学英语四级考试"></div>
+      <div><label>类型</label>
+        <select id="fType">
+          <option>考试</option><option>选课</option><option>缴费</option>
+          <option>快递</option><option>作业</option><option>宿舍</option>
+          <option>活动</option><option>其他</option>
+        </select>
+      </div>
+      <div><label>优先级（留空则按类型自动判断）</label>
+        <select id="fPri"><option value="">自动</option><option>高</option><option>中</option><option>低</option></select>
+      </div>
+      <div><label>日期 *</label><input id="fDate" type="date" required></div>
+      <div><label>时间（不填则记为当天 23:59 截止）</label><input id="fTime" type="time"></div>
+      <div class="full"><label>地点（选填）</label><input id="fLoc" placeholder="如：N402 / 驿站"></div>
+      <div><label>提醒</label>
+        <select id="fAlarm">
+          <option value="d1h1">提前 1 天 + 1 小时</option>
+          <option value="d1">仅提前 1 天</option>
+          <option value="h1">仅提前 1 小时</option>
+          <option value="none">不提醒</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end"><button type="submit" id="submitBtn" style="width:100%">添加事项</button></div>
+    </form>
+    <div class="actions">
+      <button class="ghost" onclick="exportICS()">📥 导出日历 (.ics)</button>
+      <button class="ghost" onclick="fillSample()">填入示例</button>
+      <button class="danger" onclick="clearAll()">清空全部</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>今日最该做</h2>
+    <div id="topBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>时间轴 <span class="tag" id="countTag"></span></h2>
+    <table>
+      <thead><tr><th style="width:96px">日期</th><th>事项</th><th style="width:52px">类型</th><th style="width:56px">优先级</th><th style="width:88px">操作</th></tr></thead>
+      <tbody id="tlBody"></tbody>
+    </table>
+    <div class="empty" id="tlEmpty">还没有事项。用上面一段文字或详细表单添加第一条吧。</div>
+  </div>
+
+  <div class="card">
+    <h2>冲突建议</h2>
+    <ul class="conflict" id="conflictBox" style="list-style:none"></ul>
+    <div class="empty" id="conflictEmpty">目前没有同一天多事项的冲突。</div>
+  </div>
+
+  <footer>
+    数据只保存在你自己的浏览器（localStorage），不会上传，无需登录。<br>
+    智能识别由大模型完成，结果可能出错，请务必核对后再使用。<br>
+    校内政策（考试、缴费、选课等）一律以教务处或辅导员通知为准；本页不代办理任何业务。
+  </footer>
+</div>
+
+<script>
+/* ================= 配置 ================= */
+/* 部署云函数后，把函数 URL 填到这里（结尾不要带斜杠）。
+   留空则跳过 AI，直接使用基础识别。 */
+const AI_ENDPOINT = 'https://1527833873-7592da1hzt.ap-guangzhou.tencentscf.com';
+/* 必须比云函数内部的 UPSTREAM_TIMEOUT_MS(12000) 长，否则前端先放弃、
+   云函数仍在跑并已向 DeepSeek 计费——钱花了，结果还被丢掉。 */
+const AI_TIMEOUT  = 15000;  /* 毫秒，超时后自动回退到基础识别 */
+const MAX_CHARS   = 500;
+const AI_TYPES    = ['选课','考试','缴费','快递','作业','宿舍','活动','其他'];
+
+const TYPE_PRI = {'考试':'高','选课':'高','缴费':'高','作业':'中','快递':'中','宿舍':'低','活动':'低','其他':'中'};
+const TYPE_IRREV = ['考试','选课','缴费'];
+const WEEK = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
+const ALARM_MIN = {'d1':[1440],'h1':[60],'d1h1':[1440,60],'none':[]};
+const ALARM_TXT = {'d1h1':'提前1天+1小时','d1':'提前1天','h1':'提前1小时','none':'不提醒'};
+let items = JSON.parse(localStorage.getItem('campusTimelineItems')||'[]');
+let editingId = null;
+
+function save(){localStorage.setItem('campusTimelineItems',JSON.stringify(items));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function todayStr(){const d=new Date();return fmtDate(d);}
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pad(n){return String(n).padStart(2,'0');}
+function dowCN(s){return '日一二三四五六'[new Date(s+'T00:00').getDay()];}
+function displayDate(s){return s.slice(5).replace('-','/')+' 周'+dowCN(s);}
+
+/* ================= 基础规则解析（原逻辑，保留） ================= */
+function parseQuick(text){
+  let t = text.trim(), date=null, time=null, notes=[];
+  const now = new Date();
+  let m;
+  if(m=t.match(/(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})[日号]?/)){date=new Date(+m[1],+m[2]-1,+m[3]);t=t.replace(m[0],'');}
+  else if(m=t.match(/(\d{1,2})[月/](\d{1,2})[日号]?/)){date=new Date(now.getFullYear(),+m[1]-1,+m[2]);if(date<new Date(fmtDate(now)))date.setFullYear(date.getFullYear()+1),notes.push('按最近未来年份理解');t=t.replace(m[0],'');}
+  else if(m=t.match(/(今天|明天|后天|大后天)/)){
+    const off={'今天':0,'明天':1,'后天':2,'大后天':3}[m[1]];
+    date=new Date(now);date.setDate(date.getDate()+off);t=t.replace(m[0],'');
+  }
+  else if(m=t.match(/[周礼拜]([一二三四五六日天])/)){
+    const target=WEEK[m[1]];let diff=(target-now.getDay()+7)%7;if(diff===0)diff=7;
+    date=new Date(now);date.setDate(date.getDate()+diff);t=t.replace(m[0],'');
+  }
+  if(m=t.match(/(早上|上午|中午|下午|晚上)?\s*(\d{1,2})\s*[:：点]\s*(\d{1,2})?\s*分?/)){
+    let h=+m[2], mi=m[3]?+m[3]:0;
+    if((m[1]==='下午'||m[1]==='晚上')&&h<12)h+=12;
+    if(m[1]==='中午'&&h<11)h+=12;
+    time=pad(h)+':'+pad(mi);t=t.replace(m[0],'');
+  }
+  if(!time&&date)notes.push('未注明时间，按当天 23:59 截止');
+  let pri='';
+  if(m=t.match(/[,，、\s]*(高|中|低)优先级/)){pri=m[1];t=t.replace(m[0],'');}
+  let type='其他';
+  const map=[['考试','考试'],['考四级','考试'],['快递','快递'],['取件','快递'],['作业','作业'],['报告','作业'],['提交','作业'],['截止','作业'],['缴费','缴费'],['选课','选课'],['宿舍','宿舍'],['讲座','活动'],['社团','活动'],['活动','活动']];
+  for(const [k,v] of map){if(t.includes(k)){type=v;break;}}
+  const name=t.replace(/^(帮我|请|记得|提醒我|我要|安排|排一下|整理)+/g,'').replace(/[，,。;；]+$|^(个|一下|的)+/g,'').trim()||'未命名事项';
+  return {name,type,pri,date:date?fmtDate(date):null,time,notes};
+}
+
+/* 基础识别的多事项版本：按换行/分号/句号切段，逐段套用原规则 */
+function ruleExtract(text){
+  const segs = text.split(/[\n\r；;。]+/).map(s=>s.trim()).filter(Boolean);
+  const out=[]; let lastDate=null;
+  segs.forEach(seg=>{
+    seg = scrubName(seg);                       /* 先剔除学号/手机号，避免进入事项名 */
+    if(!seg) return;
+    const r = parseQuick(seg);
+    let date = r.date, guessed = false;
+    if(!date && lastDate){ date = lastDate; guessed = true; }   /* 同段缺日期时沿用上一段 */
+    if(!date) return;
+    if(!guessed) lastDate = date;
+    /* 日期/时间被摘掉后常留下「前」「之前」等残字，这里收个尾 */
+    let name = r.name.replace(/^[的，,、\s]*(之前|以前|前|之后|以后|后|截至|截止)/, '')
+                     .replace(/^[下本这](?=(考|交|取|到|去|完|参|开|做|写|听|买|办|提|领|体|集|上))/, '')
+                     .replace(/([，,])\s*(之前|以前|前|之后|以后|后)(?=[\u4e00-\u9fa5A-Za-z0-9])/g, '$1')
+                     .replace(/(之前|以前|前|为止)$/, '').trim();
+    name = scrubName(name);
+    if(!name) name = '未命名事项';
+    out.push({name, type:r.type, date, time:r.time||'', confidence:'低'});
+  });
+  return out;
+}
+
+/* ================= AI 提取 ================= */
+function setStatus(msg, kind){
+  const el = document.getElementById('aiStatus');
+  if(!msg){ el.className='status'; el.textContent=''; return; }
+  el.className = 'status show ' + (kind||'info');
+  el.textContent = msg;
+}
+function setBusy(busy){
+  const btn = document.getElementById('aiBtn');
+  btn.disabled = busy;
+  btn.innerHTML = busy ? '<span class="spin"></span>识别中…' : '✨ AI 识别';
+}
+function normalizeAI(raw){
+  if(!Array.isArray(raw)) return [];
+  const okDate = d => {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    const [y,m,dd] = d.split('-').map(Number);
+    if(m<1||m>12||dd<1||dd>31) return false;
+    const t = new Date(y, m-1, dd);
+    return t.getFullYear()===y && t.getMonth()===m-1 && t.getDate()===dd;
+  };
+  const out = [];
+  raw.slice(0,8).forEach(o=>{
+    if(!o || typeof o!=='object') return;
+    const name = scrubName(String(o.name||'').replace(/\s+/g,' ')).slice(0,40);
+    const date = String(o.date||'').trim();
+    if(!name || !okDate(date)) return;
+    const tm = String(o.time||'').trim();
+    out.push({
+      name,
+      type: AI_TYPES.includes(o.type) ? o.type : '其他',
+      date,
+      time: /^([01]\d|2[0-3]):[0-5]\d$/.test(tm) ? tm : '',
+      confidence: o.confidence==='高' ? '高' : '低'
+    });
+  });
+  return out;
+}
+async function aiExtract(text){
+  if(!AI_ENDPOINT) throw new Error('no_endpoint');
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), AI_TIMEOUT);
+  try{
+    const res = await fetch(AI_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text, today: todayStr()}),
+      signal: ctrl.signal
+    });
+    if(!res.ok) throw new Error('http_'+res.status);
+    const data = await res.json();
+    if(!data || data.ok !== true) throw new Error('bad_response');
+    /* 服务端成功返回但 items 为空，是「AI 判断没有可提取事项」，属于正常结果，
+       不能当故障抛错——否则用户会看到「AI 暂不可用」，误以为服务挂了。 */
+    const list = normalizeAI(data.items);
+    return { list, empty: list.length === 0 };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function aiAdd(){
+  const inp = document.getElementById('aiInput');
+  const text = inp.value.trim();
+  if(!text){ setStatus('先粘贴一段文字，比如「12月19日交实验报告；周五17:00取快递」。','err'); return; }
+  if(text.length > MAX_CHARS){ setStatus('文字超过 '+MAX_CHARS+' 字，请精简后再试。','err'); return; }
+  hintPII(text);
+  cancelPreview();
+  setBusy(true); setStatus('正在识别…通常需要 2–5 秒。','info');
+  try{
+    const { list, empty } = await aiExtract(text);
+    setBusy(false);
+    if(empty){
+      /* AI 正常作答但没找到带日期的事项：不算故障，提示要说真话 */
+      const rl = ruleExtract(text);
+      if(rl.length){
+        showPreview(rl, 'rule');
+        setStatus('AI 没有识别出明确的日期，已用基础识别（共 '+rl.length+' 条，请逐条核对）。','err');
+      }else{
+        setStatus('这段文字里没有带明确日期的事项。可以写明日期再试，例如「11月20日前交高数作业」。','err');
+      }
+      return;
+    }
+    showPreview(list, 'ai');
+    setStatus('识别到 '+list.length+' 条，请核对后确认。','ok');
+  }catch(err){
+    setBusy(false);
+    /* 回退：云函数失败 / 超时 / 返回异常，一律走基础识别 */
+    const list = ruleExtract(text);
+    if(list.length){
+      showPreview(list, 'rule');
+      setStatus('AI 暂不可用，已使用基础识别（共 '+list.length+' 条，请逐条核对日期和时间）。','err');
+    }else{
+      setStatus('AI 暂不可用，已使用基础识别，但没识别出日期。请换个说法，例如「明天 17:00 取快递」。','err');
+    }
+  }
+}
+function ruleAdd(){
+  const inp = document.getElementById('aiInput');
+  const text = inp.value.trim();
+  if(!text){ setStatus('先粘贴一段文字再识别。','err'); return; }
+  if(text.length > MAX_CHARS){ setStatus('文字超过 '+MAX_CHARS+' 字，请精简后再试。','err'); return; }
+  hintPII(text);
+  cancelPreview();
+  const list = ruleExtract(text);
+  if(!list.length){ setStatus('没识别出日期。请换个说法，例如「明天 17:00 取快递」。','err'); return; }
+  showPreview(list, 'rule');
+  setStatus('基础识别到 '+list.length+' 条，请核对后确认。','ok');
+}
+/* 名称里若混入学号/手机号等长数字，落库前清洗掉 */
+function scrubName(s){
+  return String(s).replace(/1[3-9]\d{9}/g,'').replace(/\d{6,}/g,'')
+                  .replace(/学号[:：]?/g,'').replace(/\s{2,}/g,' ').trim();
+}
+/* 轻量个人信息提醒：命中只在页面上警告，不上传、不阻断 */
+function hintPII(text){
+  const hit = /学号|姓名|身份证|班号|手机号|电话|1[3-9]\d{9}|\d{8,}/.test(text);
+  document.getElementById('piiWarn').classList.toggle('show', hit);
+  return hit;
+}
+
+/* ================= 核对预览 ================= */
+let previewSource = 'ai';
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function typeOptions(cur){
+  return AI_TYPES.map(t=>'<option'+(t===cur?' selected':'')+'>'+t+'</option>').join('');
+}
+function showPreview(list, source){
+  previewSource = source;
+  document.getElementById('aiPreviewSrc').textContent = source==='ai' ? 'AI 识别' : '基础识别';
+  const body = document.getElementById('aiPreviewBody');
+  body.innerHTML = list.map(it=>{
+    const low = it.confidence !== '高';
+    return '<tr class="'+(low?'needcheck':'')+'">'+
+      '<td><input type="checkbox" class="p-check" checked aria-label="选择该事项"></td>'+
+      '<td><input type="text" class="p-name" maxlength="40" value="'+esc(it.name)+'">'+
+        (low?'<div class="chk-txt">(待核对)</div>':'')+'</td>'+
+      '<td><select class="p-type">'+typeOptions(it.type)+'</select></td>'+
+      '<td><input type="date" class="p-date" value="'+esc(it.date)+'"></td>'+
+      '<td><input type="time" class="p-time" value="'+esc(it.time||'')+'"></td>'+
+      '<td><span class="pill '+(low?'p-低':'p-高')+'">'+it.confidence+'</span></td>'+
+      '<td><span class="del p-del">删除</span></td></tr>';
+  }).join('');
+  body.querySelectorAll('.p-del').forEach(el=>{
+    el.onclick = ()=>{ const tr = el.closest('tr'); tr.remove(); if(!body.children.length) cancelPreview(); };
+  });
+  document.getElementById('aiPreview').classList.add('show');
+  document.getElementById('aiPreview').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function cancelPreview(){
+  document.getElementById('aiPreview').classList.remove('show');
+  document.getElementById('aiPreviewBody').innerHTML='';
+}
+function confirmPreview(){
+  const rows = Array.from(document.querySelectorAll('#aiPreviewBody tr'));
+  if(!rows.length){ cancelPreview(); return; }
+  let added=0, skipped=0;
+  rows.forEach(tr=>{
+    if(!tr.querySelector('.p-check').checked) return;
+    const name = tr.querySelector('.p-name').value.trim();
+    const date = tr.querySelector('.p-date').value;
+    if(!name || !/^\d{4}-\d{2}-\d{2}$/.test(date)){ skipped++; return; }
+    addItem({id:uid(), name, type:tr.querySelector('.p-type').value, pri:'',
+      date, time:tr.querySelector('.p-time').value||'', loc:'', alarm:'d1h1'});
+    added++;
+  });
+  cancelPreview();
+  document.getElementById('aiInput').value='';
+  document.getElementById('piiWarn').classList.remove('show');
+  updateCount();
+  if(added){
+    setStatus('已加入时间轴 '+added+' 条'+(skipped?'，另有 '+skipped+' 条因名称或日期为空被跳过':'')+'。','ok');
+  }else{
+    setStatus('没有可加入的事项'+(skipped?'（名称或日期为空）':'（全部未勾选）')+'。','err');
+  }
+}
+function updateCount(){
+  const inp = document.getElementById('aiInput');
+  const el = document.getElementById('charCount');
+  const n = inp.value.length;
+  el.textContent = n + ' / ' + MAX_CHARS;
+  el.classList.toggle('over', n > MAX_CHARS);
+}
+
+function fillSample(){
+  document.getElementById('fName').value='大学英语四级考试';
+  document.getElementById('fDate').value=todayStr();
+  document.getElementById('fTime').value='14:00';
+  document.getElementById('fLoc').value='以准考证为准';
+}
+
+/* ================= 增删改（原逻辑，保留） ================= */
+function addItem(it){items.push(it);save();render();}
+function submitForm(e){
+  e.preventDefault();
+  const it={id:editingId||uid(),
+    name:document.getElementById('fName').value.trim(),
+    type:document.getElementById('fType').value,
+    pri:document.getElementById('fPri').value,
+    date:document.getElementById('fDate').value,
+    time:document.getElementById('fTime').value||'',
+    loc:document.getElementById('fLoc').value.trim(),
+    alarm:document.getElementById('fAlarm').value};
+  if(editingId){items=items.map(x=>x.id===editingId?it:x);editingId=null;document.getElementById('formTitle').textContent='详细添加 / 编辑';document.getElementById('submitBtn').textContent='添加事项';}
+  else items.push(it);
+  save();render();e.target.reset();
+  return false;
+}
+function editItem(id){
+  const it=items.find(x=>x.id===id);if(!it)return;
+  editingId=id;
+  document.getElementById('formTitle').textContent='正在编辑：'+it.name;
+  document.getElementById('submitBtn').textContent='保存修改';
+  document.getElementById('fName').value=it.name;
+  document.getElementById('fType').value=it.type;
+  document.getElementById('fPri').value=it.pri;
+  document.getElementById('fDate').value=it.date;
+  document.getElementById('fTime').value=it.time;
+  document.getElementById('fLoc').value=it.loc;
+  document.getElementById('fAlarm').value=it.alarm;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function delItem(id){items=items.filter(x=>x.id!==id);if(editingId===id){editingId=null;}save();render();}
+function clearAll(){if(!items.length)return;if(confirm('确定清空全部 '+items.length+' 条事项？此操作不可恢复。')){items=[];save();render();}}
+
+/* ================= 展示（原逻辑，保留） ================= */
+function effPri(it){return it.pri||TYPE_PRI[it.type]||'中';}
+function effTime(it){return it.time||'23:59';}
+function sortItems(a,b){if(a.date!==b.date)return a.date<b.date?-1:1;return effTime(a)<effTime(b)?-1:effTime(a)>effTime(b)?1:0;}
+function render(){
+  items.sort(sortItems);
+  const tbody=document.getElementById('tlBody');
+  const empty=document.getElementById('tlEmpty');
+  tbody.innerHTML=items.map(it=>{
+    const td = it.date===todayStr()?' style="color:var(--hi);font-weight:600"':'';
+    return '<tr>'+
+      '<td'+td+'>'+displayDate(it.date)+'<div style="font-size:12px;color:var(--sub)">'+effTime(it)+(it.time?'':' 截止')+'</div></td>'+
+      '<td>'+esc(it.name)+(it.loc?'<div class="t-tag">📍 '+esc(it.loc)+'</div>':'')+
+        '<div class="t-tag">⏰ '+ALARM_TXT[it.alarm]+'</div></td>'+
+      '<td><span class="t-tag">'+it.type+'</span></td>'+
+      '<td><span class="pill p-'+effPri(it)+'">'+effPri(it)+'</span></td>'+
+      '<td><span class="edit" onclick="editItem(\''+it.id+'\')">编辑</span><br><span class="del" onclick="delItem(\''+it.id+'\')">删除</span></td>'+
+    '</tr>';
+  }).join('');
+  empty.style.display=items.length?'none':'block';
+  document.getElementById('countTag').textContent=items.length+' 条';
+
+  /* 今日最该做 */
+  const today=todayStr();
+  const top=items.filter(it=>it.date===today||(['高'].includes(effPri(it))&&it.date>today&&it.date<=addDays(today,3)))
+                 .sort(sortItems).slice(0,3);
+  document.getElementById('topBox').innerHTML=top.length
+    ? top.map((it,i)=>'<div class="top-item"><span class="no">'+(i+1)+'</span><span>'+esc(it.name)+'<span class="reason">　'+displayDate(it.date)+' '+effTime(it)+(it.time?'':' 截止')+'</span></span></div>').join('')
+    : '<div class="empty">今天没有要办的事。</div>';
+
+  /* 冲突建议 */
+  const byDate={};
+  items.forEach(it=>{(byDate[it.date]=byDate[it.date]||[]).push(it);});
+  let lines=[];
+  Object.keys(byDate).sort().forEach(d=>{
+    const arr=byDate[d];
+    if(arr.length<2)return;
+    arr.sort((a,b)=>{
+      const ia=TYPE_IRREV.includes(a.type)?0:1, ib=TYPE_IRREV.includes(b.type)?0:1;
+      if(ia!==ib)return ia-ib;
+      return effTime(a)<effTime(b)?-1:1;
+    });
+    lines.push('<li><b>'+displayDate(d)+'（'+arr.length+' 件）建议顺序：</b></li>');
+    arr.forEach((it,i)=>{
+      let reason = TYPE_IRREV.includes(it.type) ? '不可逆事项优先办' : '可补救事项，先办截止早的';
+      lines.push('<li>'+(i+1)+'. <b>'+esc(it.name)+'</b>（'+effTime(it)+'）<span class="reason"> —— '+reason+'</span></li>');
+    });
+  });
+  document.getElementById('conflictBox').innerHTML=lines.join('');
+  document.getElementById('conflictEmpty').style.display=lines.length?'none':'block';
+}
+function addDays(s,n){const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return fmtDate(d);}
+
+/* ================= ICS 导出（原逻辑，保留） ================= */
+function trig(min){return min%1440===0?'-P'+(min/1440)+'D':(min%60===0?'-PT'+(min/60)+'H':'-PT'+min+'M');}
+function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
+function exportICS(){
+  if(!items.length){alert('先添加事项再导出。');return;}
+  const now=new Date();
+  const stamp=now.getUTCFullYear()+pad(now.getUTCMonth()+1)+pad(now.getUTCDate())+'T'+pad(now.getUTCHours())+pad(now.getUTCMinutes())+pad(now.getUTCSeconds())+'Z';
+  let out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Campus Timeline Web//CN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:校园时光轴','X-WR-TIMEZONE:Asia/Shanghai',
+  'BEGIN:VTIMEZONE','TZID:Asia/Shanghai','BEGIN:STANDARD','DTSTART:19700101T000000','TZOFFSETFROM:+0800','TZOFFSETTO:+0800','TZNAME:CST','END:STANDARD','END:VTIMEZONE'];
+  items.forEach(it=>{
+    const compactDate=it.date.replace(/-/g,'');
+    const t=effTime(it).replace(':','');
+    out.push('BEGIN:VEVENT');
+    out.push('UID:'+it.id+'@campus-timeline-web');
+    out.push('DTSTAMP:'+stamp);
+    if(it.time){out.push('DTSTART;TZID=Asia/Shanghai:'+compactDate+'T'+t+'00');out.push('DTEND;TZID=Asia/Shanghai:'+compactDate+'T'+t+'00');}
+    else{out.push('DTSTART;VALUE=DATE:'+compactDate);out.push('DTEND;VALUE=DATE:'+addDays(it.date,1).replace(/-/g,''));}
+    out.push('SUMMARY:'+icsEsc(it.name+(it.time?'':'（截止）')));
+    if(it.loc)out.push('LOCATION:'+icsEsc(it.loc));
+    out.push('DESCRIPTION:'+icsEsc('类型：'+it.type+'｜优先级：'+effPri(it)));
+    (ALARM_MIN[it.alarm]||[]).forEach(min=>{
+      out.push('BEGIN:VALARM','ACTION:DISPLAY','TRIGGER:'+trig(min),'DESCRIPTION:'+icsEsc(it.name),'END:VALARM');
+    });
+    out.push('END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  const blob=new Blob([out.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='校园时光轴_'+todayStr()+'.ics';
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ================= 初始化 ================= */
+document.getElementById('aiInput').addEventListener('input', ()=>{
+  updateCount();
+  document.getElementById('piiWarn').classList.remove('show');
+});
+document.getElementById('aiInput').addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); aiAdd(); }
+});
+updateCount();
+render();
+</script>
+</body>
+</html>
