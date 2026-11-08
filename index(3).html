@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校园时光轴 · 大工新生版</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1f2933; --sub:#6b7683;
+    --line:#e3e8ee; --brand:#2563eb; --brand-soft:#eff4ff;
+    --hi:#dc2626; --hi-soft:#fdecec; --mid:#d97706; --mid-soft:#fdf3e3;
+    --lo:#6b7280; --lo-soft:#eef1f4; --ok:#059669;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;padding:24px 16px 64px}
+  .wrap{max-width:880px;margin:0 auto}
+  header{text-align:center;margin-bottom:20px}
+  header h1{font-size:26px;letter-spacing:1px}
+  header p{color:var(--sub);font-size:13px;margin-top:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.04)}
+  .card h2{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .card h2 .tag{font-size:11px;color:var(--brand);background:var(--brand-soft);padding:1px 8px;border-radius:99px;font-weight:normal}
+  .quick{display:flex;gap:8px}
+  .quick input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+  .quick input:focus{border-color:var(--brand)}
+  button{border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;background:var(--brand);color:#fff}
+  button:hover{opacity:.9}
+  button.ghost{background:var(--lo-soft);color:var(--ink)}
+  button.danger{background:var(--hi-soft);color:var(--hi)}
+  .parsed{font-size:12px;color:var(--sub);margin-top:8px;min-height:1em}
+  .parsed b{color:var(--ink)}
+  form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  form .full{grid-column:1/-1}
+  form label{font-size:12px;color:var(--sub);display:block;margin-bottom:3px}
+  form input,form select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;outline:none;background:#fff}
+  form input:focus,form select:focus{border-color:var(--brand)}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:12px;color:var(--sub);font-weight:normal;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;white-space:nowrap}
+  .p-高{background:var(--hi-soft);color:var(--hi)}
+  .p-中{background:var(--mid-soft);color:var(--mid)}
+  .p-低{background:var(--lo-soft);color:var(--lo)}
+  .t-tag{font-size:11px;color:var(--sub)}
+  .conflict li{margin:8px 0;font-size:13px}
+  .conflict b{color:var(--ink)}
+  .reason{color:var(--sub);font-size:12px}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:14px 0}
+  .top-item{display:flex;gap:8px;font-size:14px;padding:6px 0}
+  .top-item .no{color:#fff;background:var(--brand);border-radius:50%;width:20px;height:20px;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:3px}
+  .edit{color:var(--brand);cursor:pointer;font-size:12px;white-space:nowrap}
+  .del{color:var(--hi);cursor:pointer;font-size:12px;white-space:nowrap}
+  footer{color:var(--sub);font-size:12px;text-align:center;margin-top:8px;line-height:1.8}
+  @media (max-width:640px){form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🕐 校园时光轴</h1>
+    <p>大连理工大学新生版 · 把零散的事排成一条不漏项的时间轴</p>
+  </header>
+
+  <div class="card">
+    <h2>一句话添加 <span class="tag">例：周四下午2点考四级，高优先级</span></h2>
+    <div class="quick">
+      <input id="quickInput" placeholder="如：周五 17:00 取快递 / 12月19日交实验报告 / 周三晚交作业" onkeydown="if(event.key==='Enter')quickAdd()">
+      <button onclick="quickAdd()">识别添加</button>
+    </div>
+    <div class="parsed" id="parsedTip"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">详细添加 / 编辑</h2>
+    <form onsubmit="return submitForm(event)">
+      <div class="full"><label>事项名称 *</label><input id="fName" required placeholder="如：大学英语四级考试"></div>
+      <div><label>类型</label>
+        <select id="fType">
+          <option>考试</option><option>选课</option><option>缴费</option>
+          <option>快递</option><option>作业</option><option>宿舍</option>
+          <option>活动</option><option>其他</option>
+        </select>
+      </div>
+      <div><label>优先级（留空则按类型自动判断）</label>
+        <select id="fPri"><option value="">自动</option><option>高</option><option>中</option><option>低</option></select>
+      </div>
+      <div><label>日期 *</label><input id="fDate" type="date" required></div>
+      <div><label>时间（不填则记为当天 23:59 截止）</label><input id="fTime" type="time"></div>
+      <div class="full"><label>地点（选填）</label><input id="fLoc" placeholder="如：N402 / 驿站"></div>
+      <div><label>提醒</label>
+        <select id="fAlarm">
+          <option value="d1h1">提前 1 天 + 1 小时</option>
+          <option value="d1">仅提前 1 天</option>
+          <option value="h1">仅提前 1 小时</option>
+          <option value="none">不提醒</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end"><button type="submit" id="submitBtn" style="width:100%">添加事项</button></div>
+    </form>
+    <div class="actions">
+      <button class="ghost" onclick="exportICS()">📥 导出日历 (.ics)</button>
+      <button class="ghost" onclick="fillSample()">填入示例</button>
+      <button class="danger" onclick="clearAll()">清空全部</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>今日最该做</h2>
+    <div id="topBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>时间轴 <span class="tag" id="countTag"></span></h2>
+    <table>
+      <thead><tr><th style="width:96px">日期</th><th>事项</th><th style="width:52px">类型</th><th style="width:46px">优先级</th><th style="width:88px">操作</th></tr></thead>
+      <tbody id="tlBody"></tbody>
+    </table>
+    <div class="empty" id="tlEmpty">还没有事项。用上面一句话或详细表单添加第一条吧。</div>
+  </div>
+
+  <div class="card">
+    <h2>冲突建议</h2>
+    <ul class="conflict" id="conflictBox" style="list-style:none"></ul>
+    <div class="empty" id="conflictEmpty">目前没有同一天多事项的冲突。</div>
+  </div>
+
+  <footer>
+    数据只保存在你自己的浏览器（localStorage），不会上传，无需登录。<br>
+    校内政策（考试、缴费、选课等）一律以教务处或辅导员通知为准；本页不代办理任何业务。
+  </footer>
+</div>
+
+<script>
+const TYPE_PRI = {'考试':'高','选课':'高','缴费':'高','作业':'中','快递':'中','宿舍':'低','活动':'低','其他':'中'};
+const TYPE_IRREV = ['考试','选课','缴费'];
+const WEEK = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0};
+const ALARM_MIN = {'d1':[1440],'h1':[60],'d1h1':[1440,60],'none':[]};
+const ALARM_TXT = {'d1h1':'提前1天+1小时','d1':'提前1天','h1':'提前1小时','none':'不提醒'};
+let items = JSON.parse(localStorage.getItem('campusTimelineItems')||'[]');
+let editingId = null;
+
+function save(){localStorage.setItem('campusTimelineItems',JSON.stringify(items));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function todayStr(){const d=new Date();return fmtDate(d);}
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pad(n){return String(n).padStart(2,'0');}
+function dowCN(s){return '日一二三四五六'[new Date(s+'T00:00').getDay()];}
+function displayDate(s){return s.slice(5).replace('-','/')+' 周'+dowCN(s);}
+
+/* ---------- 一句话解析 ---------- */
+function parseQuick(text){
+  let t = text.trim(), date=null, time=null, notes=[];
+  const now = new Date();
+  let m;
+  if(m=t.match(/(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})[日号]?/)){date=new Date(+m[1],+m[2]-1,+m[3]);t=t.replace(m[0],'');}
+  else if(m=t.match(/(\d{1,2})[月/](\d{1,2})[日号]?/)){date=new Date(now.getFullYear(),+m[1]-1,+m[2]);if(date<new Date(fmtDate(now)))date.setFullYear(date.getFullYear()+1),notes.push('按最近未来年份理解');t=t.replace(m[0],'');}
+  else if(m=t.match(/(今天|明天|后天|大后天)/)){
+    const off={'今天':0,'明天':1,'后天':2,'大后天':3}[m[1]];
+    date=new Date(now);date.setDate(date.getDate()+off);t=t.replace(m[0],'');
+  }
+  else if(m=t.match(/[周礼拜]([一二三四五六日天])/)){
+    const target=WEEK[m[1]];let diff=(target-now.getDay()+7)%7;if(diff===0)diff=7;
+    date=new Date(now);date.setDate(date.getDate()+diff);t=t.replace(m[0],'');
+  }
+  if(m=t.match(/(早上|上午|中午|下午|晚上)?\s*(\d{1,2})\s*[:：点]\s*(\d{1,2})?\s*分?/)){
+    let h=+m[2], mi=m[3]?+m[3]:0;
+    if((m[1]==='下午'||m[1]==='晚上')&&h<12)h+=12;
+    if(m[1]==='中午'&&h<11)h+=12;
+    time=pad(h)+':'+pad(mi);t=t.replace(m[0],'');
+  }
+  if(!time&&date)notes.push('未注明时间，按当天 23:59 截止');
+  let pri='';
+  if(m=t.match(/[,，、\s]*(高|中|低)优先级/)){pri=m[1];t=t.replace(m[0],'');}
+  let type='其他';
+  const map=[['考试','考试'],['考四级','考试'],['快递','快递'],['取件','快递'],['作业','作业'],['报告','作业'],['提交','作业'],['截止','作业'],['缴费','缴费'],['选课','选课'],['宿舍','宿舍'],['讲座','活动'],['社团','活动'],['活动','活动']];
+  for(const [k,v] of map){if(t.includes(k)){type=v;break;}}
+  const name=t.replace(/^(帮我|请|记得|提醒我|我要|安排|排一下|整理)+/g,'').replace(/[，,。;；]+$|^(个|一下|的)+/g,'').trim()||'未命名事项';
+  return {name,type,pri,date:date?fmtDate(date):null,time,notes};
+}
+function quickAdd(){
+  const inp=document.getElementById('quickInput');
+  const tip=document.getElementById('parsedTip');
+  if(!inp.value.trim()){tip.textContent='先输入一句话，比如「明天 17:00 取快递」。';return;}
+  const r=parseQuick(inp.value);
+  if(!r.date){tip.textContent='没识别出日期，请换个说法（如：明天 / 周五 / 12月19日）。';return;}
+  addItem({id:uid(),name:r.name,type:r.type,pri:r.pri||'',date:r.date,time:r.time||'',loc:'',alarm:'d1h1'});
+  tip.innerHTML='已添加：<b>'+esc(r.name)+'</b>（'+r.type+' · '+displayDate(r.date)+(r.time?' '+r.time:' 23:59 截止')+'）'+(r.notes.length?'　'+esc(r.notes.join('；')):'');
+  inp.value='';
+}
+function fillSample(){
+  document.getElementById('fName').value='大学英语四级考试';
+  document.getElementById('fDate').value=todayStr();
+  document.getElementById('fTime').value='14:00';
+  document.getElementById('fLoc').value='以准考证为准';
+}
+
+/* ---------- 增删改 ---------- */
+function addItem(it){items.push(it);save();render();}
+function submitForm(e){
+  e.preventDefault();
+  const it={id:editingId||uid(),
+    name:document.getElementById('fName').value.trim(),
+    type:document.getElementById('fType').value,
+    pri:document.getElementById('fPri').value,
+    date:document.getElementById('fDate').value,
+    time:document.getElementById('fTime').value||'',
+    loc:document.getElementById('fLoc').value.trim(),
+    alarm:document.getElementById('fAlarm').value};
+  if(editingId){items=items.map(x=>x.id===editingId?it:x);editingId=null;document.getElementById('formTitle').textContent='详细添加 / 编辑';document.getElementById('submitBtn').textContent='添加事项';}
+  else items.push(it);
+  save();render();e.target.reset();
+  return false;
+}
+function editItem(id){
+  const it=items.find(x=>x.id===id);if(!it)return;
+  editingId=id;
+  document.getElementById('formTitle').textContent='正在编辑：'+it.name;
+  document.getElementById('submitBtn').textContent='保存修改';
+  document.getElementById('fName').value=it.name;
+  document.getElementById('fType').value=it.type;
+  document.getElementById('fPri').value=it.pri;
+  document.getElementById('fDate').value=it.date;
+  document.getElementById('fTime').value=it.time;
+  document.getElementById('fLoc').value=it.loc;
+  document.getElementById('fAlarm').value=it.alarm;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function delItem(id){items=items.filter(x=>x.id!==id);if(editingId===id){editingId=null;}save();render();}
+function clearAll(){if(!items.length)return;if(confirm('确定清空全部 '+items.length+' 条事项？此操作不可恢复。')){items=[];save();render();}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ---------- 展示 ---------- */
+function effPri(it){return it.pri||TYPE_PRI[it.type]||'中';}
+function effTime(it){return it.time||'23:59';}
+function sortItems(a,b){if(a.date!==b.date)return a.date<b.date?-1:1;return effTime(a)<effTime(b)?-1:effTime(a)>effTime(b)?1:0;}
+function render(){
+  items.sort(sortItems);
+  const tbody=document.getElementById('tlBody');
+  const empty=document.getElementById('tlEmpty');
+  tbody.innerHTML=items.map(it=>{
+    const td = it.date===todayStr()?' style="color:var(--hi);font-weight:600"':'';
+    return '<tr>'+
+      '<td'+td+'>'+displayDate(it.date)+'<div style="font-size:12px;color:var(--sub)">'+effTime(it)+(it.time?'':' 截止')+'</div></td>'+
+      '<td>'+esc(it.name)+(it.loc?'<div class="t-tag">📍 '+esc(it.loc)+'</div>':'')+
+        '<div class="t-tag">⏰ '+ALARM_TXT[it.alarm]+'</div></td>'+
+      '<td><span class="t-tag">'+it.type+'</span></td>'+
+      '<td><span class="pill p-'+effPri(it)+'">'+effPri(it)+'</span></td>'+
+      '<td><span class="edit" onclick="editItem(\''+it.id+'\')">编辑</span><br><span class="del" onclick="delItem(\''+it.id+'\')">删除</span></td>'+
+    '</tr>';
+  }).join('');
+  empty.style.display=items.length?'none':'block';
+  document.getElementById('countTag').textContent=items.length+' 条';
+
+  /* 今日最该做 */
+  const today=todayStr();
+  const top=items.filter(it=>it.date===today||(['高'].includes(effPri(it))&&it.date>today&&it.date<=addDays(today,3)))
+                 .sort(sortItems).slice(0,3);
+  document.getElementById('topBox').innerHTML=top.length
+    ? top.map((it,i)=>'<div class="top-item"><span class="no">'+(i+1)+'</span><span>'+esc(it.name)+'<span class="reason">　'+displayDate(it.date)+' '+effTime(it)+(it.time?'':' 截止')+'</span></span></div>').join('')
+    : '<div class="empty">今天没有要办的事。</div>';
+
+  /* 冲突建议 */
+  const byDate={};
+  items.forEach(it=>{(byDate[it.date]=byDate[it.date]||[]).push(it);});
+  let lines=[];
+  Object.keys(byDate).sort().forEach(d=>{
+    const arr=byDate[d];
+    if(arr.length<2)return;
+    arr.sort((a,b)=>{
+      const ia=TYPE_IRREV.includes(a.type)?0:1, ib=TYPE_IRREV.includes(b.type)?0:1;
+      if(ia!==ib)return ia-ib;
+      return effTime(a)<effTime(b)?-1:1;
+    });
+    lines.push('<li><b>'+displayDate(d)+'（'+arr.length+' 件）建议顺序：</b></li>');
+    arr.forEach((it,i)=>{
+      let reason = TYPE_IRREV.includes(it.type) ? '不可逆事项优先办' : '可补救事项，先办截止早的';
+      lines.push('<li>'+(i+1)+'. <b>'+esc(it.name)+'</b>（'+effTime(it)+'）<span class="reason"> —— '+reason+'</span></li>');
+    });
+  });
+  document.getElementById('conflictBox').innerHTML=lines.join('');
+  document.getElementById('conflictEmpty').style.display=lines.length?'none':'block';
+}
+function addDays(s,n){const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return fmtDate(d);}
+
+/* ---------- ICS 导出 ---------- */
+function trig(min){return min%1440===0?'-P'+(min/1440)+'D':(min%60===0?'-PT'+(min/60)+'H':'-PT'+min+'M');}
+function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');}
+function exportICS(){
+  if(!items.length){alert('先添加事项再导出。');return;}
+  const now=new Date();
+  const stamp=now.getUTCFullYear()+pad(now.getUTCMonth()+1)+pad(now.getUTCDate())+'T'+pad(now.getUTCHours())+pad(now.getUTCMinutes())+pad(now.getUTCSeconds())+'Z';
+  let out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Campus Timeline Web//CN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:校园时光轴','X-WR-TIMEZONE:Asia/Shanghai',
+  'BEGIN:VTIMEZONE','TZID:Asia/Shanghai','BEGIN:STANDARD','DTSTART:19700101T000000','TZOFFSETFROM:+0800','TZOFFSETTO:+0800','TZNAME:CST','END:STANDARD','END:VTIMEZONE'];
+  items.forEach(it=>{
+    const compactDate=it.date.replace(/-/g,'');
+    const t=effTime(it).replace(':','');
+    out.push('BEGIN:VEVENT');
+    out.push('UID:'+it.id+'@campus-timeline-web');
+    out.push('DTSTAMP:'+stamp);
+    if(it.time){out.push('DTSTART;TZID=Asia/Shanghai:'+compactDate+'T'+t+'00');out.push('DTEND;TZID=Asia/Shanghai:'+compactDate+'T'+t+'00');}
+    else{out.push('DTSTART;VALUE=DATE:'+compactDate);out.push('DTEND;VALUE=DATE:'+addDays(it.date,1).replace(/-/g,''));}
+    out.push('SUMMARY:'+icsEsc(it.name+(it.time?'':'（截止）')));
+    if(it.loc)out.push('LOCATION:'+icsEsc(it.loc));
+    out.push('DESCRIPTION:'+icsEsc('类型：'+it.type+'｜优先级：'+effPri(it)));
+    (ALARM_MIN[it.alarm]||[]).forEach(min=>{
+      out.push('BEGIN:VALARM','ACTION:DISPLAY','TRIGGER:'+trig(min),'DESCRIPTION:'+icsEsc(it.name),'END:VALARM');
+    });
+    out.push('END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  const blob=new Blob([out.join('\r\n')],{type:'text/calendar;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='校园时光轴_'+todayStr()+'.ics';
+  a.click();URL.revokeObjectURL(a.href);
+}
+render();
+</script>
+</body>
+</html>
